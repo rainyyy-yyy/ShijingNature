@@ -12,10 +12,12 @@ rcParams['font.sans-serif'] = ['Microsoft JhengHei']  # Windows 中文字型
 rcParams['axes.unicode_minus'] = False
 
 # ===== 使用前設定 =====
-text_folder = "D:/Users/peggy/Github/ShijingNature/shijing"  # txt 檔資料夾
-word_csv = "D:/Users/peggy/Github/ShijingNature/shijing/test.csv"  # 詞彙對照表 (三欄：詞, 大類, 子類)
-exclude_csv = "D:/Users/peggy/Github/ShijingNature/shijing/exclude.csv"  # 要排除統計的詞彙表 (一欄：詞)
+text_folder = "./詩經/情感"  # txt 檔資料夾
+word_csv = "./詩經/詞彙.csv"  # 詞彙對照表 (三欄：詞, 大類, 子類)
+exclude_csv = "./詩經/排除.csv"  # 要排除統計的詞彙表 (一欄：詞)
 output_folder = "output/shijing"  # 輸出結果資料夾
+last_folder = os.path.basename(os.path.normpath(text_folder)) # 取得 text_folder 的最後一層資料夾名稱
+output_folder = os.path.join(output_folder, last_folder)
 os.makedirs(output_folder, exist_ok=True)
 
 # ===== 清理文字：只保留中文字 =====
@@ -80,12 +82,14 @@ with open(word_csv, "r", encoding="utf-8-sig", newline="") as f:
 # ===== 載入排除詞 =====
 excluded_words = load_excluded_words(exclude_csv)
 
-# ===== 合併所有 txt 檔 =====
+# ===== 遞迴讀取所有 txt 檔 =====
 all_text = ""
-for filename in os.listdir(text_folder):
-    if filename.endswith(".txt"):
-        with open(os.path.join(text_folder, filename), "r", encoding="utf-8") as f:
-            all_text += clean_text(f.read())
+for root, dirs, files in os.walk(text_folder):
+    for filename in files:
+        if filename.endswith(".txt"):
+            file_path = os.path.join(root, filename)
+            with open(file_path, "r", encoding="utf-8") as f:
+                all_text += clean_text(f.read())
 
 # ===== 詞頻統計（避免重疊） =====
 word_counts = find_nonoverlapping_counts(all_text, list(word_map.keys()))
@@ -96,6 +100,25 @@ for word, count in word_counts.items():
     main_cat, sub_cat = word_map[word]
     main_counter[main_cat] += count
     sub_counter[main_cat][sub_cat] += count
+
+# ===== 輸出《國風》物色意象詞彙的總體高頻排行（前 20 名） =====
+word_df = pd.DataFrame(word_counts.items(), columns=["詞彙", "總頻次"]) # 將所有統計到的詞彙頻率 (word_counts) 轉換為 DataFrame
+word_df = word_df[word_df['總頻次'] > 0].sort_values(by='總頻次', ascending=False).reset_index(drop=True) # 排除頻次為 0 的詞彙，並按頻次降序排列
+word_category_info = {word: info[0] for word, info in word_map.items()} # 為了在輸出中顯示「大類」，我們將 word_map 的資訊整合進來
+word_df['意象大類'] = word_df['詞彙'].map(word_category_info)
+
+# 輸出前 20 名高頻詞彙
+top_n = 20
+top_words_df = word_df.head(top_n)
+# 計算相對頻率 (%)
+total_word_count = word_df['總頻次'].sum()
+top_words_df['相對頻率(%)'] = (top_words_df['總頻次'] / total_word_count * 100).round(2)
+# 重新排序欄位以利閱讀
+top_words_df = top_words_df[['詞彙', '總頻次', '相對頻率(%)', '意象大類']]
+# 儲存高頻排行至 CSV
+top_words_output_file = os.path.join(output_folder, f"top_{top_n}_words_ranking.csv")
+top_words_df.to_csv(top_words_output_file, index_label='排名', encoding="utf-8-sig")
+print(f"已輸出高頻排行（前 {top_n} 名）到 CSV：{top_words_output_file}")
 
 # ===== 建立輸出資料結構 =====
 data_rows = []

@@ -12,7 +12,7 @@ rcParams['font.sans-serif'] = ['Microsoft JhengHei']  # Windows 中文字型
 rcParams['axes.unicode_minus'] = False
 
 # ===== 使用前設定 =====
-text_folder = "./詩經/情感"  # txt 檔資料夾
+text_folder = "./詩經/情感/感懷"  # txt 檔資料夾
 word_csv = "./詩經/詞彙.csv"  # 詞彙對照表 (三欄：詞, 大類, 子類)
 exclude_csv = "./詩經/排除.csv"  # 要排除統計的詞彙表 (一欄：詞)
 output_folder = "output/shijing"  # 輸出結果資料夾
